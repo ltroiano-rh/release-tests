@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 class AdvisoryManager:
     """
-    AdvisoryManager will be used to communicate with Errata Tool API to get/update advisory
-    Kerbros ticket is required to use this tool
+    AdvisoryManager is used to communicate with Errata Tool API to get/update advisory
+    Kerberos ticket is required to use this tool
     """
 
     def __init__(self, cs: ConfigStore):
@@ -144,7 +144,7 @@ class AdvisoryManager:
             bool: job is triggered or not
         """
 
-        # check if all the push jobs are completed, if no, trigger new push job with default value [stage]
+        # check if all push jobs are completed, if not, trigger new push job with default value [stage]
         # request with default value will not redo any push which has already successfully completed since the last respin of the advisory. It will redo failed pushes
 
         triggered_ads = []
@@ -187,7 +187,7 @@ class AdvisoryManager:
 
     def drop_bugs(self):
         """
-        Go thru all attached bugs. drop the not verified bugs if they're not critical/blocker/customer_case
+        Go thru all attached bugs. Drop the not verified bugs if they're not critical/blocker/customer_case
 
         Raises:
             AdvisoryException: error when dropping bugs from advisory
@@ -240,7 +240,7 @@ class AdvisoryManager:
 
     def check_cve_tracker_bug(self):
         """
-        Call elliott cmd to check if any new CVE tracke bug found
+        Call elliott cmd to check if any new CVE tracker bug found
 
         Raises:
             AdvisoryException: error when invoke elliott cmd
@@ -257,12 +257,6 @@ class AdvisoryManager:
             "--assembly",
             self._cs.release,
             "find-bugs:sweep",
-            "--include-status",
-            "ON_QA",
-            "--include-status",
-            "MODIFIED",
-            "--include-status",
-            "VERIFIED",
             "--cve-only",
             "--report",
             "--output",
@@ -513,15 +507,15 @@ class Advisory(Erratum):
 
     def is_doc_approved(self):
         """
-        Check if doc is approved for a advisory
+        Check if doc is approved for an advisory
         Returns:
-            bool: True if doc for a advisory is approved, otherwise False
+            bool: True if doc for an advisory is approved, otherwise False
         """
         return self.get_erratum_data()["doc_complete"] == 1
 
     def is_prodsec_approved(self):
         """
-        Check if prodsec is approved for a advisory
+        Check if prodsec is approved for an advisory
         Returns:
             bool: True if prodsec is approved, otherwise False
         """
@@ -529,23 +523,23 @@ class Advisory(Erratum):
 
     def is_doc_requested(self):
         """
-        Check if doc for a advisory is requested
+        Check if doc for an advisory is requested
         Returns:
-            bool: True if doc for a advisory is requested, otherwise False
+            bool: True if doc for an advisory is requested, otherwise False
         """
         return self.get_erratum_data()["text_ready"] == 1
 
     def is_prodsec_requested(self):
         """
-        Check if prodsec for a advisory is requested
+        Check if prodsec for an advisory is requested
         Returns:
-        bool: False if prodsec for a advisory is requested, otherwise False
+        bool: False if prodsec for an advisory is requested, otherwise False
         """
         return self.get_erratum_data()["security_approved"] == False
 
     def request_doc_approval(self):
         """
-        send doc approval request for a advisory
+        send doc approval request for an advisory
         """
         pdata = {"advisory[text_ready]": 1}
         url = "/api/v1/erratum/%i" % self.errata_id
@@ -554,7 +548,7 @@ class Advisory(Erratum):
 
     def request_prodsec_approval(self):
         """
-        send product security approval request for a advisory
+        send product security approval request for an advisory
         """
         pdata = {"advisory[security_approved]": False}
         url = "/api/v1/erratum/%i" % self.errata_id
@@ -596,13 +590,33 @@ class Advisory(Erratum):
                 f"RHBA advisory {self.errata_id} does not have secalerts")
             return None
 
+    def refresh_security_alerts(self):
+        """
+        Makes a request to the ProdSec errata review microservice to refresh the security alert data for an RHSA.
+        """
+        if self.errata_type == "RHSA":
+            url = "/api/v1/erratum/%i/security_alerts/refresh" % self.errata_id
+            resp = self._post(url)
+            resp.raise_for_status()
+            return resp.json()
+        else:
+            logger.warning(
+                f"RHBA advisory {self.errata_id} does not have secalerts")
+            return None
+
     def has_blocking_secruity_alert(self):
         """
-        Check is RHSA advisory has blocking secalert
+        Check RHSA advisory has blocking security alert
         """
-        json_dict = self.get_security_alerts()
+        # get refreshed results directly
+        json_dict = self.refresh_security_alerts()
         if json_dict:
             alerts = json_dict["alerts"]
+            # if alerts are empty or attr blocking not found, return false
+            if len(alerts) == 0 or "blocking" not in alerts:
+                logger.warning(
+                    f"Cannot find alerts for advisory {self.errata_id}")
+                return False
             blocking = alerts["blocking"]
             if blocking:
                 logger.info(

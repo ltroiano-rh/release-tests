@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class NotificationManager:
     """
-    NotifiationManager will be used to notificate messages via email or slack.
+    NotificationManager is used to send notification messages via email or slack.
     """
 
     def __init__(self, cs: ConfigStore):
@@ -35,7 +35,7 @@ class NotificationManager:
 
     def share_new_report(self, report: TestReport):
         """
-        Send email and slack messgae for new report info
+        Send email and slack message for new report info
 
         Args:
             report (TestReport): newly created test report
@@ -453,7 +453,7 @@ class MessageHelper:
         manipulate slack message for new CVE tracker bugs
 
         Args:
-            cve_tracker_bugs ([]): list of new CVE tracker bug
+            cve_tracker_bugs ([]): list of new CVE tracker bugs
 
         Returns:
             str: slack message
@@ -473,7 +473,7 @@ class MessageHelper:
         self, dropped_bugs, must_verify_bugs
     ):
         """
-        manipulate slacke message for dropped bugs and must verified bugs
+        manipulate slack message for dropped bugs and must verify bugs
 
         Args:
             dropped_bugs ([]): list of dropped bugs
@@ -496,7 +496,7 @@ class MessageHelper:
 
         if len(must_verify_bugs):
             message += "\n" if len(message) else ""
-            message += f"[{self.cs.release}] Hello {gid}, following bugs are Critical/CVE Tracker/Customer Case, must be verified, if any of them can be dropped, let us (#release-tests) know, thanks\n"
+            message += f"[{self.cs.release}] Hello {gid}, following bugs are Critical/CVE Tracker/Customer Case, must be verified, if any of them can be dropped, do it manually, thanks\n"
             for bug in must_verify_bugs:
                 message += self._to_link(util.get_jira_link(bug), bug) + "\n"
 

@@ -272,6 +272,11 @@ class JobController:
                 # This logic only supports upgrade from latest stable version of current release e.g. from 4.16.3 to latest nightly
                 latest_stable_build = self.get_current_build(
                     build_file=self._build_file_for_stable)
+                if not latest_stable_build:
+                    # if no stable build found, it is possible that controller is running for nightly first.
+                    # so stable build file is not created, we need to intiialize it in runtime
+                    latest_stable_build = JobController(
+                        self._release, False, False, self._arch).get_latest_build()
                 prow_job_id = self.job_api.run_job(
                     job_name=test_job.prow_job, upgrade_to=build.pull_spec, upgrade_from=latest_stable_build.pull_spec, payload=None)
             else:
@@ -467,9 +472,6 @@ class ProwJobResult():
     def is_pending(self):
         return self.job_state == "pending"
 
-    def not_found(self):
-        return self._result is None
-
     def to_dict(self):
         return {k: v for k, v in self._result.items() if v is not None and k != "jobName"}
 
@@ -483,6 +485,8 @@ class ProwJobResult():
             self.from_dict(self.job_api.get_job_results(job_id))
         except Exception as e:
             logger.error(f"fetch job result error: {e}")
+            # if job info cannot be retrieved from gangway, init result as empty dict
+            self._result = {}
         return self
 
     def _get_test_result_summary(self):
@@ -696,6 +700,11 @@ class TestResultAggregator():
                     # if it's true, the job result will not be used to determine build is QE accepted
                     job_metadata = self.job_registry.get_test_job(
                         release, nightly, job_result.job_name)
+                    # if job definition is removed from job registry, skip this job and continue
+                    if not job_metadata:
+                        logger.warning(
+                            f"skip aggreation for job run of {job_result.job_name}")
+                        continue
 
                     # if first job is failed and it's not optional we will start to trigger retry jobs
                     # according to `retries` attribute defined in job registry
