@@ -173,7 +173,6 @@ class AdvisoryManager:
 
         Raises:
             AdvisoryException: error when update advisory status
-
         """
         try:
             ads = self.get_advisories()
